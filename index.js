@@ -43,7 +43,7 @@ const decryptPassword = async (req, res, password, hashedPassword) => {
     const encodedPassword = await bcrypt.compare(password, hashedPassword);
     return encodedPassword;
   } catch (err) {
-    res.status(501).json({ "msg": `${err}` });
+    res.status(501).json({ msg: `${err}` });
   }
 };
 
@@ -59,8 +59,8 @@ app.post("/register", async (req, res) => {
       res.status(400).json({ msg: "enter email correctly" });
     let sql = `Select * from user where username="${username}"`;
     await db.con.query(sql, async (error, result) => {
-      if (error) res.status(501).json({ "msg": `${error}` });
-      
+      if (error) res.status(501).json({ msg: `${error}` });
+
       let obj = Object.assign({}, result);
 
       if (Object.keys(obj).length === 0) {
@@ -68,11 +68,11 @@ app.post("/register", async (req, res) => {
         var sql = `INSERT into user (username,password) values ("${username}","${password}")`;
         try {
           db.con.query(sql, (er, result) => {
-            if (er) throw res.status(501).json({ "msg": `${er}` });
+            if (er) throw res.status(501).json({ msg: `${er}` });
             res.status(200).send("valid request");
           });
         } catch (err) {
-          res.status(501).json({"msg": `${er}` });
+          res.status(501).json({ msg: `${er}` });
         }
       } else {
         res.status(401).send("existing user");
@@ -87,7 +87,7 @@ app.post("/login", async (req, res) => {
   var { username, password } = req.body;
   try {
     if (req.session.authenticated) {
-      res.status(200).json({ 'msg': "logged in successfully" });
+      res.status(200).json({ msg: "logged in successfully" });
     }
     let sql = `Select * from user where username="${username}"`;
     await db.con.query(sql, async (error, result) => {
@@ -95,12 +95,12 @@ app.post("/login", async (req, res) => {
 
       if (Object.keys(obj).length === 1) {
         let flag = await decryptPassword(req, res, password, obj[0].password);
-        if (!flag) res.status(400).json({ "msg": "password not match" });
+        if (!flag) res.status(400).json({ msg: "password not match" });
         req.session.authenticated = true;
         req.session.username = username;
-        res.status(200).json({ 'msg': "logged in successfully" });
+        res.status(200).json({ msg: "logged in successfully" });
       } else {
-        res.status(400).json({ 'msg': "invalid user" });
+        res.status(400).json({ msg: "invalid user" });
       }
     });
   } catch (err) {
@@ -135,6 +135,35 @@ app.post("/addaddress", (req, res) => {
     res.status(401).json({ msg: "not a loggedin user" });
   }
 });
+
+// order place
+app.post("/placeorder", (req, res) => {
+  if (req.session.authenticated) {
+    try {
+      var { address } = req.body.address;
+      if (address === null || address === "")
+        res.status(401).json({ msg: "enter address cannot be empty" });
+      for (var key in req.body.order) {
+        {
+          let sql = `INSERT INTO pendingorders (address,item,quantity,username) values("${address}","${key}","${req.body.order[key]}","${req.session.username}")`;
+          db.con.query(sql, (error, result) => {
+            if (error) {
+              res.status(501).json({ msg: `${error}` });
+            }
+          });
+        }
+        res.status(200).json({ msg: "waiting for confirmation" });
+      }
+    } catch (err) {
+      res.status(501).json({ msg: `${err}` });
+    }
+  } else {
+    res.status(401).json({ msg: "first log in" });
+  }
+});
+
+
+
 
 app.listen(8000, (req, res) => {
   console.log("connected");
